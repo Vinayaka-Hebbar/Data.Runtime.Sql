@@ -3,3 +3,6 @@
 ################################################################################
 
 /src/.vs/Data.Runtime.Sql/v16
+/src/Data.Runtime.Sql/bin
+/src/Data.Runtime.Sql/.vs/Data.Runtime.Sql/DesignTimeBuild
+/src/Data.Runtime.Sql/obj
