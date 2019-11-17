@@ -28,10 +28,12 @@ namespace Data.Runtime.Sql
             foreach (var property in properties
                 .Where(p => p.IsDefined(typeof(DataMemberAttribute))))
             {
-                var attribute = (DataMemberAttribute)property.GetCustomAttribute(typeof(DataMemberAttribute), false);
-                if (attribute.IsRequired)
+                var attribute = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.Equals(typeof(DataMemberAttribute)));
+                if (!attribute.NamedArguments.Any(arg => arg.MemberName.Equals(IsRequired) && !(bool)arg.TypedValue.Value))
                 {
-                    yield return new Utils.PropertyDescription(attribute.Name, attribute.Order, property);
+                    CustomAttributeNamedArgument name = attribute.NamedArguments.FirstOrDefault(arg => arg.MemberName.Equals(DataMemberName));
+                    CustomAttributeNamedArgument order = attribute.NamedArguments.FirstOrDefault(arg => arg.MemberName.Equals(Order));
+                    yield return new Utils.PropertyDescription(name.MemberInfo == null ? property.Name : name.TypedValue.Value.ToString(), order.MemberInfo == null ? 0 : (int)order.TypedValue.Value, property);
                 }
             }
         }
