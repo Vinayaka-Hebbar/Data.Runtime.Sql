@@ -1,7 +1,5 @@
-﻿using System;
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Reflection;
-using static Data.Runtime.Sql.Constants;
 
 namespace Data.Runtime.Sql.Utils
 {
@@ -9,84 +7,105 @@ namespace Data.Runtime.Sql.Utils
     {
         private readonly PropertyInfo property;
 
-        public readonly Type Type;
+        private MethodInfo opImplicit;
+
+        private TypeConverter converter;
+
+        public readonly System.Type PropertyType;
 
         public readonly string Name;
 
         public readonly int Order;
 
-        private MethodInfo opImplicit;
+        public readonly bool IsRequired;
 
-        private TypeConverter converter;
+        private TypeConverter Converter { get => converter ?? (converter = TypeDescriptor.GetConverter(PropertyType)); }
 
-        public TypeConverter Converter { get => converter ?? (converter = TypeDescriptor.GetConverter(Type)); }
-
-        public PropertyDescription(string name,int order, PropertyInfo property)
+        public PropertyDescription(string name, int order, bool isRequied, PropertyInfo property)
         {
             Name = name;
             Order = order;
+            IsRequired = isRequied;
             this.property = property;
-            Type = property.PropertyType;
+            PropertyType = property.PropertyType;
         }
 
-        private MethodInfo GetImplicitOperator(Type valueType)
+        internal PropertyDescriptions SubDescription { get; set; }
+
+        private MethodInfo GetImplicitOperator(System.Type valueType)
         {
             if (opImplicit == null)
             {
-                opImplicit = Type.GetMethod(OperatorImplicit, new[] { valueType });
+                opImplicit = PropertyType.GetMethod(Constants.OperatorImplicit, new[] { valueType });
             }
             return opImplicit;
         }
 
-        internal void SetValue(object obj, object value)
+        internal  bool TrySetValue(string name, object obj, object value)
         {
-            switch (Type.FullName)
+            switch (PropertyType.FullName)
             {
-                case TypeStringArray:
+                case Constants.TypeStringArray:
                     string stringValue = value.ToString();
                     if (string.IsNullOrEmpty(stringValue))
                     {
                         property.SetValue(obj, System.Linq.Enumerable.Empty<string>());
-                        return;
                     }
-                    property.SetValue(obj, stringValue.Split(CommaChar));
-                    return;
-                case TypeDateTime:
-                case TypeString:
+                    property.SetValue(obj, stringValue.Split(Constants.CommaChar));
+                    break;
+                case Constants.TypeDateTime:
+                case Constants.TypeString:
                     property.SetValue(obj, value);
-                    return;
+                    break;
                 default:
-                    if (value == null) return;
-                    if (Type.IsValueType)
+                    if (value == null) return true;
+                    if (PropertyType.IsValueType)
                     {
                         property.SetValue(obj, value);
-                        return;
+                        return true;
                     }
-                    if (Type.IsSerializable)
+                    if (PropertyType.IsSerializable)
                     {
-                        property.SetValue(obj, Json.Serialization.JsonConvert.Deserialize(value.ToString(), Type));
-                        return;
+                        property.SetValue(obj, Json.Serialization.JsonConvert.Deserialize(value.ToString(), PropertyType));
+                        return true;
+                    }
+                    if (SubDescription != null)
+                    {
+                        var instance = property.GetValue(obj);
+                        if (instance == null)
+                        {
+                            instance = System.Activator.CreateInstance(PropertyType);
+                            property.SetValue(obj, instance);
+                        }
+                        return SubDescription.TrySetValue(name, instance, value);
                     }
                     //Try Implicit cast
                     var castMethod = GetImplicitOperator(value.GetType());
                     if (castMethod != null)
                     {
                         property.SetValue(obj, castMethod.Invoke(null, new[] { value }));
-                        return;
+                        return true;
                     }
                     //Try Change Type
                     TypeConverter converter = Converter;
                     if (converter.CanConvertFrom(value.GetType()))
                     {
                         property.SetValue(obj, converter.ConvertFrom(value));
+                        return true;
                     }
-                    return;
+                    return false;
             }
+            return true;
         }
 
         public object GetValue(object obj)
         {
             return property.GetValue(obj);
+        }
+
+        public override string ToString()
+        {
+            return Name;
         }
     }
 }

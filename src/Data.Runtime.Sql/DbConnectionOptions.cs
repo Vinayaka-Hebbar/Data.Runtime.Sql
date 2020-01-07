@@ -3,10 +3,10 @@ using System.Collections.Generic;
 
 namespace Data.Runtime.Sql
 {
-    // <summary>
-    /// Database Option
+    /// <summary>
+    /// Database Option such as ConnectionString, Username etc
     /// </summary>
-    public class DbConnectionOptions : IDictionary<string, string>, ICollection<KeyValuePair<string, string>>, IEnumerable<KeyValuePair<string, string>>
+    public sealed class DbConnectionOptions : IDictionary<string, string>, ICollection<KeyValuePair<string, string>>, IEnumerable<KeyValuePair<string, string>>
     {
         private readonly IDictionary<string, string> options;
 

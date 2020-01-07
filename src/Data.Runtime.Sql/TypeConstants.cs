@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Reflection;
-using System.Text;
+﻿using System.Reflection;
 
 namespace Data.Runtime.Sql
 {
@@ -20,6 +17,8 @@ namespace Data.Runtime.Sql
         public const string OperatorImplicit = "op_Implicit";
 
         public const string TypeString = "System.String";
+        public const string TypeByte = "System.Byte";
+        public const string TypeSByte = "System.SByte";
         public const string TypeInt16 = "System.Int16";
         public const string TypeUInt16 = "System.UInt16";
         public const string TypeInt32 = "System.Int32";
@@ -27,10 +26,14 @@ namespace Data.Runtime.Sql
         public const string TypeInt64 = "System.Int64";
         public const string TypeUInt64 = "System.UInt64";
         public const string TypeBool = "System.Boolean";
+        public const string TypeChar = "System.Char";
         //Todo Float
+        public const string TypeFloat = "System.Float";
         public const string TypeDouble = "System.Double";
+        public const string TypeDecimal = "System.Decimal";
         public const string TypeStringArray = "System.String[]";
         public const string TypeDateTime = "System.DateTime";
+        public const string TypeGuid = "System.Guid";
 
         public const string EmptyJsonObject = "{}";
 

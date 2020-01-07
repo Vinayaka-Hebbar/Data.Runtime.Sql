@@ -13,18 +13,22 @@ namespace Data.Runtime.Sql
 {
     //Todo fetch of class for ISerializable
     /// <summary>
-    /// Factory Implementation Class
+    /// Factory Implementation Class 
+    /// <list type="number">
+    ///    <item><description>if class has <see cref="DataMemberAttribute"/> if it has to be out parameter make <see cref="DataMemberAttribute.IsRequired"/> to <code>true</code></description>  </item>
+    /// </list>
+    /// 
     /// </summary>
     [Obfuscation(Exclude = true)]
     public class SqlDbClient : ISqlDbClient, IEqualityComparer<DbParameter>
     {
-        private readonly IDbClientImplementation clientImplementation;
+        private readonly IDbClientImpl clientImplementation;
 
         /// <summary>
         /// Creates a Factory Implementation of <paramref name="clientImplementation"/>
         /// </summary>
         /// <param name="clientImplementation"></param>
-        public SqlDbClient(IDbClientImplementation clientImplementation)
+        public SqlDbClient(IDbClientImpl clientImplementation)
         {
             this.clientImplementation = clientImplementation;
         }
@@ -148,10 +152,8 @@ namespace Data.Runtime.Sql
         public async Task<List<TModel>> ExecuteProcedureSegmentAsync<TModel>(string procedureName, object input = null) where TModel : class, new()
         {
             List<TModel> results = new List<TModel>();
-            var propertieList = typeof(TModel)
-                .GetProperties()
-                .GetPropertyDescriptions();
-            var propertiesDesc = propertieList.ToDictionary(item => item.Name);
+            IEnumerable<Utils.PropertyDescription> propertieList = typeof(TModel).GetPropertyDescriptions();
+            var propertiesDesc = new Utils.PropertyDescriptions(propertieList);
             using (DbCommand cmd = clientImplementation.CreateProcedureCall(procedureName))
             {
                 IEnumerable<DbParameter> parameters = GetInputParams(input)
@@ -171,11 +173,7 @@ namespace Data.Runtime.Sql
                         {
                             if (reader.IsDBNull(index)) continue;
                             string field = fields[index];
-                            var propertyDesc = propertiesDesc[field];
-                            if (propertyDesc != null)
-                            {
-                                propertyDesc.SetValue(model, reader.GetValue(index));
-                            }
+                            propertiesDesc.TrySetValue(field, model, reader.GetValue(index));
                         }
                         results.Add(model);
                     }
@@ -219,7 +217,7 @@ namespace Data.Runtime.Sql
         #region Private Methods
         private IEnumerable<DbParameter> GetOutParams(IEnumerable<Utils.PropertyDescription> properties)
         {
-            foreach (var property in properties.OrderBy(p=>p.Order))
+            foreach (var property in properties.Where(p => p.IsRequired).OrderBy(p => p.Order))
             {
                 yield return clientImplementation.GetOutputParameter(property);
             }
@@ -227,48 +225,51 @@ namespace Data.Runtime.Sql
 
         private IEnumerable<DbParameter> GetInputParams(object input)
         {
-            if (input == null) yield break;
-            Type objectType = input.GetType();
-            if (objectType.IsDefined(typeof(DataContractAttribute), false))
+            if (input != null)
             {
-                foreach (var param in GetInputParams(input, objectType))
+                Type objectType = input.GetType();
+                if (objectType.IsDefined(typeof(DataContractAttribute), false))
                 {
-                    yield return param;
-                }
-                yield break;
-            }
-            var properties = objectType.GetProperties();
-            foreach (var property in properties)
-            {
-                var propertyType = property.PropertyType;
-                var value = property.GetValue(input);
-                if (propertyType.IsValueType)
-                {
-                    yield return clientImplementation.GetInputParameter(value, property.Name, propertyType.FullName);
-                }
-                else if (propertyType.IsSerializable)
-                {
-                    if (propertyType.IsGenericType)
+                    foreach (var param in GetInputParams(input, objectType))
                     {
-                        //Check whether Dictionary Value
-                        if (typeof(IDictionary).IsAssignableFrom(propertyType))
-                        {
-                            foreach (var parameter in GetDictionaryParameter(value))
-                            {
-                                yield return parameter;
-                            }
-                        }
-                        continue;
+                        yield return param;
                     }
-                    yield return GetSerializableParameter(value, property.Name, propertyType.FullName);
+                    yield break;
                 }
-                else if (propertyType.IsClass)
+                var properties = objectType.GetProperties();
+                foreach (var property in properties)
                 {
-                    if (value != null)
+                    var propertyType = property.PropertyType;
+                    var value = property.GetValue(input);
+                    if (propertyType.IsValueType)
                     {
-                        foreach (var param in GetInputParams(value, propertyType))
+                        yield return clientImplementation.GetInputParameter(value, property.Name, propertyType.FullName);
+                    }
+                    else if (propertyType.IsSerializable)
+                    {
+                        //if generic type for dictionary
+                        if (propertyType.IsGenericType)
                         {
-                            yield return param;
+                            //Check whether Dictionary Value
+                            if (typeof(IDictionary).IsAssignableFrom(propertyType))
+                            {
+                                foreach (var parameter in GetDictionaryParameter(value))
+                                {
+                                    yield return parameter;
+                                }
+                            }
+                            continue;
+                        }
+                        yield return GetSerializableParameter(value, property.Name, propertyType.FullName);
+                    }
+                    else if (propertyType.IsClass)
+                    {
+                        if (value != null)
+                        {
+                            foreach (var param in GetInputParams(value, propertyType))
+                            {
+                                yield return param;
+                            }
                         }
                     }
                 }
@@ -277,26 +278,28 @@ namespace Data.Runtime.Sql
 
         private IEnumerable<DbParameter> GetDictionaryParameter(object input)
         {
-            var dictionary = (IDictionary)(input);
-            foreach (var key in dictionary.Keys)
+            if (input != null)
             {
-                var value = dictionary[key];
-                var valueType = value.GetType();
-                if (valueType.IsValueType)
+                var dictionary = (IDictionary)input;
+                foreach (var key in dictionary.Keys)
                 {
-                    yield return clientImplementation.GetInputParameter(value, key.ToString(), valueType.FullName);
-                }
-                else if (valueType.IsSerializable)
-                {
-                    yield return GetSerializableParameter(value, key.ToString(), valueType.FullName);
+                    var value = dictionary[key];
+                    var valueType = value.GetType();
+                    if (valueType.IsValueType)
+                    {
+                        yield return clientImplementation.GetInputParameter(value, key.ToString(), valueType.FullName);
+                    }
+                    else if (valueType.IsSerializable)
+                    {
+                        yield return GetSerializableParameter(value, key.ToString(), valueType.FullName);
+                    }
                 }
             }
-            yield break;
         }
 
         private IEnumerable<DbParameter> GetInputParams(object input, Type objectType)
         {
-            foreach (var property in objectType.GetProperties().GetPropertyDescriptions())
+            foreach (var property in objectType.GetPropertyItems())
             {
                 Type propertyType = property.Type;
                 object value = property.GetValue(input);

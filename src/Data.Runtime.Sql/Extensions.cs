@@ -23,49 +23,32 @@ namespace Data.Runtime.Sql
             return properties.Where(property => property.IsDefined(attributeType, false));
         }
 
-        internal static IEnumerable<Utils.PropertyDescription> GetPropertyDescriptions(this IEnumerable<PropertyInfo> properties)
+        internal static IEnumerable<Utils.PropertyDescription> GetPropertyDescriptions(this Type type)
         {
-            foreach (var property in properties
-                .Where(p => p.IsDefined(typeof(DataMemberAttribute))))
+            foreach (var property in type.GetProperties()
+                .Where(p => p.IsDefined(typeof(DataMemberAttribute), false)))
             {
-                var attribute = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType.Equals(typeof(DataMemberAttribute)));
-                if (!attribute.NamedArguments.Any(arg => arg.MemberName.Equals(IsRequired) && !(bool)arg.TypedValue.Value))
+                var propertyType = property.PropertyType;
+                var attribute = (DataMemberAttribute)property.GetCustomAttribute(typeof(DataMemberAttribute));
+                var descriptor = new Utils.PropertyDescription(attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired, property);
+                if (propertyType.IsClass && propertyType.IsSerializable == false)
                 {
-                    CustomAttributeNamedArgument name = attribute.NamedArguments.FirstOrDefault(arg => arg.MemberName.Equals(DataMemberName));
-                    CustomAttributeNamedArgument order = attribute.NamedArguments.FirstOrDefault(arg => arg.MemberName.Equals(Order));
-                    yield return new Utils.PropertyDescription(name.MemberInfo == null ? property.Name : name.TypedValue.Value.ToString(), order.MemberInfo == null ? 0 : (int)order.TypedValue.Value, property);
-                }
+                    if (propertyType.IsDefined(typeof(DataContractAttribute), false))
+                    {
+                        descriptor.SubDescription = new Utils.PropertyDescriptions(GetPropertyDescriptions(propertyType));
+                    }
+                };
+                yield return descriptor;
             }
         }
 
-        internal static void SetElementValue(this PropertyInfo property, object element, object value)
+        internal static IEnumerable<Utils.PropertyItem> GetPropertyItems(this Type type)
         {
-            Type type = property.PropertyType;
-            switch (type.FullName)
+            foreach (var property in type.GetProperties()
+                .Where(p => p.IsDefined(typeof(DataMemberAttribute), false)))
             {
-                case TypeStringArray:
-                    string stringValue = value.ToString();
-                    if (string.IsNullOrEmpty(stringValue))
-                    {
-                        property.SetValue(element, new string[0]);
-                        return;
-                    }
-                    property.SetValue(element, stringValue.Split(CommaChar));
-                    return;
-                case TypeDateTime:
-                case TypeString:
-                    property.SetValue(element, value);
-                    return;
-                default:
-                    if (value == null) return;
-                    if (type.IsValueType)
-                    {
-                        property.SetValue(element, value);
-                        return;
-                    }
-                    if (type.IsSerializable)
-                        property.SetValue(element, Json.Serialization.JsonConvert.Deserialize(value.ToString(), type));
-                    return;
+                var attribute = (DataMemberAttribute)property.GetCustomAttribute(typeof(DataMemberAttribute));
+                yield return new Utils.PropertyItem(property, attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired);
             }
         }
 

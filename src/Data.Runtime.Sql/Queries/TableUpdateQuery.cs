@@ -1,7 +1,5 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.Serialization;
 
 /**
  * @author Vinayaka Hebbar
@@ -14,26 +12,17 @@ namespace Data.Runtime.Sql.Queries
         protected internal TableUpdateQuery(TElement element) : base(TableOperationType.Update)
         {
             Element = element;
-            IEnumerable<PropertyInfo> properties = typeof(TElement).GetProperties().GetPropertiesWithAttribute(typeof(DataMemberAttribute));
-            Columns = properties.GetDataMemberNames();
-            Values = properties.Select(property => property.GetValue(element));
+            Items = ReflectionHelper.GetColumns(element)
+                .ToDictionary(item => item.Key, item => item.Value);
         }
 
         public TElement Element { get; }
 
-        public IEnumerable<string> Columns { get; set; }
+        public IDictionary<string, object> Items { get; }
 
-        public IEnumerable<object> Values { get; set; }
-
-        public TableUpdateQuery<TElement> SetValues(params object[] values)
+        public TableUpdateQuery<TElement> Set(string key, object value)
         {
-            Values = values;
-            return this;
-        }
-
-        public TableUpdateQuery<TElement> SetColumns(params string[] columns)
-        {
-            Columns = columns;
+            Items[key] = value;
             return this;
         }
     }

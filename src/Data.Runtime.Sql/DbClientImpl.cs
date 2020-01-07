@@ -1,6 +1,5 @@
 ﻿using System.Data;
 using System.Data.Common;
-using System.Reflection;
 using System.Threading.Tasks;
 
 namespace Data.Runtime.Sql
@@ -9,9 +8,9 @@ namespace Data.Runtime.Sql
     /// Base Class of Client Implementation
     /// </summary>
     /// <typeparam name="T">Connection Type <see cref="DbConnection"/></typeparam>
-    public abstract class DbImplementation<T> : IDbClientImplementation where T : DbConnection
+    public abstract class DbClientImpl<T> : IDbClientImpl where T : DbConnection
     {
-        public DbImplementation()
+        public DbClientImpl()
         {
             Options = new DbConnectionOptions();
         }
@@ -24,14 +23,21 @@ namespace Data.Runtime.Sql
 
         public abstract bool IsConnected { get; }
 
-        public abstract SqlTableRef GetTableRef(string tableName);
+        public virtual SqlTableRef GetTableRef(string tableName)
+        {
+            return new SqlTableRef(tableName, this);
+        }
 
         public virtual void Dispose()
         {
-
+            var connection = GetConnection();
+            if (connection != null)
+            {
+                connection.Dispose();
+            }
         }
 
-        DbConnection IDbClientImplementation.GetConnection()
+        DbConnection IDbClientImpl.GetConnection()
         {
             return GetConnection();
         }
@@ -46,8 +52,18 @@ namespace Data.Runtime.Sql
 
         public abstract DbParameter GetInputParameter(object value, string propertyName, int type);
 
+        /// <summary>
+        /// type name to implemented DbType
+        /// </summary>
+        /// <param name="typeName">TypeName</param>
+        /// <returns>implemented Dbtype value</returns>
         public abstract int GetDbType(string typeName);
 
+        /// <summary>
+        /// DbType to implemented DbType
+        /// </summary>
+        /// <param name="typeName">TypeName</param>
+        /// <returns>implemented Dbtype value</returns>
         public abstract int GetDbType(DbType type);
 
         public abstract DbParameter GetInputParameter(object value, string propertyName, DbType type);

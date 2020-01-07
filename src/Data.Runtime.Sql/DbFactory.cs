@@ -13,9 +13,9 @@ namespace Data.Runtime.Sql
         /// <typeparam name="TConnection">Connection Type</typeparam>
         /// <param name="options">Connection Option</param>
         /// <returns>Factory Implementation SqlDbClient </returns>
-        public static async Task<SqlDbClient> CreateAsync<TConnection>(DbConnectionOptions options) where TConnection : IDbClientImplementation, new()
+        public static async Task<SqlDbClient> CreateAsync<TConnection>(DbConnectionOptions options) where TConnection : IDbClientImpl, new()
         {
-            IDbClientImplementation clientImplementation = new TConnection();
+            IDbClientImpl clientImplementation = new TConnection();
             clientImplementation.Options.Set(options);
             await clientImplementation.ConnectAsync();
             return new SqlDbClient(clientImplementation);

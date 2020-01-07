@@ -2,12 +2,19 @@
 
   <PropertyGroup>
     <TargetFrameworks>net45;netcoreapp2.0;netstandard2.0</TargetFrameworks>
+    <Version>1.0.10-beta</Version>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <DefineConstants Condition="'$(VisualStudioVersion)'&gt;= 16">LATEST_VS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
     <GeneratePackageOnBuild>true</GeneratePackageOnBuild>
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Authors>Vinayaka Hebbar</Authors>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
     <PackageProjectUrl>https://github.com/Vinayaka-Hebbar/Data.Runtime.Sql.git</PackageProjectUrl>
-    <Version>1.0.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,5 +30,4 @@
   <ItemGroup>
     <PackageReference Include="Json.Serialization" Version="1.0.0" />
   </ItemGroup>
-
 </Project>

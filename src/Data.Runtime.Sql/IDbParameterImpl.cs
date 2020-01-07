@@ -7,7 +7,7 @@ namespace Data.Runtime.Sql
     /// <summary>
     /// Interface for Client Implementation of DbParameter 
     /// </summary>
-    public interface IDbParameterImplementation
+    public interface IDbParameterImpl
     {
         int GetDbType(string typeName);
         int GetDbType(DbType type);

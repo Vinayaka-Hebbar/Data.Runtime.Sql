@@ -40,16 +40,48 @@ namespace Data.Runtime.Sql
                 : true;
         }
 
-        private static string GetColumnName(PropertyInfo property)
+        internal static IEnumerable<KeyValuePair<string, object>> GetColumns(object obj)
         {
-            var dataMemberAttributeData = property.CustomAttributes.FirstOrDefault(attribute => attribute.AttributeType == typeof(DataMemberAttribute));
-            if (dataMemberAttributeData != null)
+            var type = obj.GetType();
+            PropertyInfo[] propertyInfo = type.GetProperties(Constants.InstantPublic);
+            foreach (var property in propertyInfo)
             {
-                if (dataMemberAttributeData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value))
+                var attrData = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType == typeof(DataMemberAttribute));
+                if (attrData != null)
+                {
+                    if (!attrData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value))
+                    {
+                        var name = attrData.NamedArguments.FirstOrDefault(arg => arg.MemberName == Constants.DataMemberName);
+                        if (name.TypedValue.Value != null)
+                        {
+                            yield return new KeyValuePair<string, object>(name.TypedValue.Value.ToString(), property.GetValue(obj, new object[0]));
+                        }
+                        else
+                        {
+                            // name not found
+                            yield return new KeyValuePair<string, object>(property.Name, property.GetValue(obj, new object[0]));
+                        }
+                    }
+                }
+            }
+        }
+
+        internal static string GetColumnName(PropertyInfo property)
+        {
+            var attrData = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType == typeof(DataMemberAttribute));
+            if (attrData != null)
+            {
+                if (attrData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value))
                 {
                     return null;
                 }
-                return dataMemberAttributeData.NamedArguments.FirstOrDefault(arg => arg.MemberName == Constants.DataMemberName).TypedValue.Value.ToString();
+                var name = attrData.NamedArguments.FirstOrDefault(arg => arg.MemberName == Constants.DataMemberName);
+                if (name.TypedValue.Value != null)
+                {
+                    return name.TypedValue.Value.ToString();
+                }
+                // Name not found
+                return property.Name;
             }
             return null;
         }

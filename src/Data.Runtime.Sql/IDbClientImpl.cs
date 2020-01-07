@@ -6,7 +6,7 @@ namespace Data.Runtime.Sql
     /// <summary>
     /// Interface for Client Implementation of Connection
     /// </summary>
-    public interface IDbClientImplementation : IDbParameterImplementation, System.IDisposable
+    public interface IDbClientImpl : IDbParameterImpl, System.IDisposable
     {
         SqlTableRef GetTableRef(string tableName);
         Task ConnectAsync();
