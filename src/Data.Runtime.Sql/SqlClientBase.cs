@@ -1,25 +1,26 @@
-﻿using System.Data;
+﻿using SqlDb.Data.Common;
+using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Base Class of Client Implementation
     /// </summary>
     /// <typeparam name="T">Connection Type <see cref="DbConnection"/></typeparam>
-    public abstract class DbClientImpl<T> : IDbClientImpl where T : DbConnection
+    public abstract class SqlClientBase<T> : ISqlClient where T : DbConnection
     {
-        public DbClientImpl()
+        protected SqlClientBase(IConnectionOptions options)
         {
-            Options = new DbConnectionOptions();
+            Options = options ?? throw new System.ArgumentNullException(nameof(options));
         }
 
-        public abstract Task ConnectAsync();
+        public abstract Task<bool> ConnectAsync();
 
         public abstract T GetConnection();
 
-        public DbConnectionOptions Options { get; }
+        public IConnectionOptions Options { get; set; }
 
         public abstract bool IsConnected { get; }
 
@@ -37,7 +38,7 @@ namespace Data.Runtime.Sql
             }
         }
 
-        DbConnection IDbClientImpl.GetConnection()
+        DbConnection ISqlClient.GetConnection()
         {
             return GetConnection();
         }

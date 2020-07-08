@@ -1,4 +1,4 @@
-﻿namespace Data.Runtime.Sql.Queries
+﻿namespace SqlDb.Data.Queries
 {
     public enum ExecutionType
     {

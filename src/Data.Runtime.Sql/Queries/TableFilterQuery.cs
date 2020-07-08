@@ -1,28 +1,20 @@
-﻿/**
- * @author Vinayaka Hebbar
+﻿
+
+using System.Threading.Tasks;
+/**
+* @author Vinayaka Hebbar
 **/
-
-namespace Data.Runtime.Sql.Queries
+namespace SqlDb.Data.Queries
 {
-    public class TableFilterQuery<TElement> : TableQueryBase<TElement> where TElement : class, new()
+    public abstract class TableFilterQuery : TableQueryBase
     {
-        protected internal TableFilterQuery(TableOperationType operationType) : base(operationType)
+        protected TableFilterQuery(SqlTable table) : base(table)
         {
 
         }
 
-        public string WhereFilterString { get; set; }
+        public string WhereFilter { get; set; }
 
-        public TableQueryBase<TElement> Where(string filter)
-        {
-            WhereFilterString = filter;
-            return this;
-        }
-
-        public TableQueryBase<TElement> Where(string filter, params object[] @params)
-        {
-            WhereFilterString = string.Format(filter, @params);
-            return this;
-        }
+        public abstract Task<QueryResult> ExecuteAsync();
     }
 }

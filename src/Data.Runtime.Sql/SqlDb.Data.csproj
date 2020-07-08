@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net45;netcoreapp2.0;netstandard2.0</TargetFrameworks>
-    <Version>1.0.10-beta</Version>
+    <TargetFrameworks>net45;netstandard2.0;netcoreapp2.0</TargetFrameworks>
+    <Version>1.0.0</Version>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -14,7 +14,7 @@
     <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
     <Authors>Vinayaka Hebbar</Authors>
     <PackageLicenseFile>LICENSE</PackageLicenseFile>
-    <PackageProjectUrl>https://github.com/Vinayaka-Hebbar/Data.Runtime.Sql.git</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/Vinayaka-Hebbar/App.ComponentModel.Sql.git</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,8 +26,13 @@
       <PackagePath></PackagePath>
     </None>
   </ItemGroup>
+  
+  <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
+    <Reference Include="System.Configuration.dll" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Json.Serialization" Version="1.0.0" />
+    <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
   </ItemGroup>
 </Project>

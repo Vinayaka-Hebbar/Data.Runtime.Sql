@@ -3,7 +3,7 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29215.179
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Data.Runtime.Sql", "Data.Runtime.Sql\Data.Runtime.Sql.csproj", "{06B792CD-F989-442E-BC43-A44A2B60D0F5}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SqlDb.Data", "Data.Runtime.Sql\SqlDb.Data.csproj", "{147C54F3-89CD-4B77-B879-2B1B6514EA68}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -11,10 +11,10 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{06B792CD-F989-442E-BC43-A44A2B60D0F5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{06B792CD-F989-442E-BC43-A44A2B60D0F5}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{06B792CD-F989-442E-BC43-A44A2B60D0F5}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{06B792CD-F989-442E-BC43-A44A2B60D0F5}.Release|Any CPU.Build.0 = Release|Any CPU
+		{147C54F3-89CD-4B77-B879-2B1B6514EA68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{147C54F3-89CD-4B77-B879-2B1B6514EA68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{147C54F3-89CD-4B77-B879-2B1B6514EA68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{147C54F3-89CD-4B77-B879-2B1B6514EA68}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,172 +1,381 @@
-﻿#if NET45 || NET40
-using Data.Runtime.Sql.Utils;
+﻿using SqlDb.Data.Common;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Threading.Tasks;
+using static SqlDb.Data.Constants;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
-
-    public sealed class SqlClient : DbClientImpl<SqlConnection>
+    //Todo fetch of class for ISerializable
+    /// <summary>
+    /// Factory Implementation Class 
+    /// <list type="number">
+    ///    <item><description>if class has <see cref="DataMemberAttribute"/> if it has to be out parameter make <see cref="DataMemberAttribute.IsRequired"/> to <code>true</code></description>  </item>
+    /// </list>
+    /// </summary>
+    public class SqlClient : IDisposable
     {
-        private SqlConnection connection;
+        private readonly ISqlClient impl;
 
-        public override bool IsConnected => connection != null && connection.State == ConnectionState.Open;
-
-        public async override System.Threading.Tasks.Task ConnectAsync()
+        /// <summary>
+        /// Creates a Factory Implementation of <paramref name="impl"/>
+        /// </summary>
+        /// <param name="impl"></param>
+        public SqlClient(ISqlClient impl)
         {
-            connection = new SqlConnection(Options["ConnectionString"]);
-            if (connection.State != ConnectionState.Open)
-                await connection.OpenAsync();
+            this.impl = impl;
         }
 
-        public override DbCommand CreateCommand(string cmdText)
+#if NETFRAMEWORK
+        public SqlClient() : this(SqlFactory.Default.CreateSqlClient())
         {
-            return new SqlCommand(cmdText, connection);
+
+        }
+#endif
+        /// <summary>
+        /// Connection state of Client
+        /// </summary>
+        public bool IsConnected => impl.IsConnected;
+
+        /// <summary>
+        /// DbConnection of Implementation
+        /// </summary>
+        /// <returns></returns>
+        public DbConnection GetConnection()
+        {
+            return impl.GetConnection();
         }
 
-        public override DbCommand CreateProcedureCall(string procedureName)
+        /// <summary>
+        /// Creates Connection to Database
+        /// </summary>
+        /// <returns></returns>
+        public async Task<SqlClient> ConnectAsync()
         {
-            return new SqlCommand(procedureName, connection)
+            var success = await impl.ConnectAsync();
+            if (success)
             {
-                CommandType = CommandType.StoredProcedure
-            };
+                var connection = impl.GetConnection();
+                await connection.OpenAsync();
+            }
+
+            return this;
         }
 
-        public override SqlConnection GetConnection()
+        #region Synchronous Methods
+        /// <summary>
+        /// Non Query Procedure call (Synchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>Query Result</returns>
+        public QueryResult ExecuteProcedure(string procedureName, object input = null)
         {
-            return connection;
+            return ExecuteProcedureAsync(procedureName, input).Result;
         }
 
-        private static SqlDbType GetMySqlDbType(string typeName)
+        /// <summary>
+        /// Procedure call with list of elements as result (Synchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>List of Elements</returns>
+        public List<TModel> ExecuteProcedureSegment<TModel>(string procedureName, object input) where TModel : class, new()
+        {
+            return ExecuteProcedureSegmentAsync<TModel>(procedureName, input).Result;
+        }
+
+        /// <summary>
+        /// Procedure call with single element as result (Synchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>Single Element of the result</returns>
+        public TModel ExecuteStoredProcedure<TModel>(string procedureName, object input = null) where TModel : class, new()
+        {
+            return ExecuteProcedureSegmentAsync<TModel>(procedureName, input).Result.FirstOrDefault();
+        }
+
+        #endregion
+
+        #region Asynchronous Methods
+        /// <summary>
+        /// Non Query Sql Call
+        /// </summary>
+        /// <param name="query">Query String</param>
+        /// <returns></returns>
+        public async Task<QueryResult> ExecuteNonQueryAsync(string query)
+        {
+            using (DbCommand cmd = impl.CreateCommand(query))
+            {
+                try
+                {
+                    var affectedRows = await cmd.ExecuteNonQueryAsync();
+                    return QueryResult.Success(affectedRows);
+                }
+                catch (Exception ex)
+                {
+                    return QueryResult.Error(ex);
+                }
+            }
+        }
+        /// <summary>
+        /// Non Query Procedure call (Asynchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>Query Result</returns>
+        public async Task<QueryResult> ExecuteProcedureAsync(string procedureName, object input)
+        {
+            using (DbCommand cmd = impl.CreateProcedureCall(procedureName))
+            {
+                cmd.CommandType = CommandType.StoredProcedure;
+                foreach (DbParameter paramter in GetInputParams(input).Latest())
+                {
+                    cmd.Parameters.Add(paramter);
+                }
+                try
+                {
+                    var affectedRows = await cmd.ExecuteNonQueryAsync();
+                    return QueryResult.Success(affectedRows);
+                }
+                catch (Exception ex)
+                {
+                    return QueryResult.Error(ex);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Procedure call with list of elements as result (Asynchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>List of Elements</returns>
+        public async Task<List<TModel>> ExecuteProcedureSegmentAsync<TModel>(string procedureName, object input = null) where TModel : class, new()
+        {
+            List<TModel> results = new List<TModel>();
+            IEnumerable<Utils.PropertyDescription> propertieList = typeof(TModel).GetPropertyDescriptions();
+            var propertiesDesc = new Utils.PropertyDescriptions(propertieList);
+            using (DbCommand cmd = impl.CreateProcedureCall(procedureName))
+            {
+                IEnumerable<DbParameter> parameters = GetInputParams(input)
+                    .Latest()
+                    .Concat(GetOutParams(propertieList));
+                foreach (DbParameter paramter in parameters)
+                {
+                    cmd.Parameters.Add(paramter);
+                }
+                using (DbDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    string[] fields = reader.GetFields().ToArray();
+                    while (await reader.ReadAsync())
+                    {
+                        var model = new TModel();
+                        for (int index = 0; index < fields.Length; index++)
+                        {
+                            if (reader.IsDBNull(index)) continue;
+                            propertiesDesc.TrySetValue(model, fields[index], reader.GetValue(index));
+                        }
+                        results.Add(model);
+                    }
+                }
+            }
+
+            return results;
+        }
+
+        /// <summary>
+        /// Procedure call with single element as result (Asynchronous)
+        /// </summary>
+        /// <param name="procedureName">Name of the Procedure Call</param>
+        /// <param name="input">Input for the procedure call</param>
+        /// <returns>Single Element of the result</returns>
+        public async Task<TModel> ExecuteStoredProcedureAsync<TModel>(string procedureName, object input = null) where TModel : class, new()
+        {
+            var result = await ExecuteProcedureSegmentAsync<TModel>(procedureName, input);
+            return result.FirstOrDefault();
+        }
+        #endregion
+
+        /// <summary>
+        /// Get TableRef for Client Implementation
+        /// </summary>
+        /// <param name="tableName">Name of the table</param>
+        /// <returns>Table Implementation for Client</returns>
+        public SqlTableRef GetTableRef(string tableName)
+        {
+            return impl.GetTableRef(tableName);
+        }
+
+        #region Private Methods
+        private IEnumerable<DbParameter> GetOutParams(IEnumerable<Utils.PropertyDescription> properties)
+        {
+            foreach (var property in properties.Where(p => p.IsRequired).OrderBy(p => p.Order))
+            {
+                yield return impl.GetOutputParameter(property);
+            }
+        }
+
+        private IEnumerable<DbParameter> GetInputParams(object input)
+        {
+            if (input != null)
+            {
+                Type objectType = input.GetType();
+                if (objectType.IsDefined(typeof(DataContractAttribute), false))
+                {
+                    foreach (var param in GetInputParams(input, objectType))
+                    {
+                        yield return param;
+                    }
+                    yield break;
+                }
+                var properties = objectType.GetProperties();
+                foreach (var property in properties)
+                {
+                    var propertyType = property.PropertyType;
+                    var value = property.GetValue(input);
+                    if (propertyType.IsValueType)
+                    {
+                        yield return impl.GetInputParameter(value, property.Name, propertyType.FullName);
+                    }
+                    else if (propertyType.IsSerializable)
+                    {
+                        //if generic type for dictionary
+                        if (propertyType.IsGenericType)
+                        {
+                            //Check whether Dictionary Value
+                            if (typeof(IDictionary).IsAssignableFrom(propertyType))
+                            {
+                                foreach (var parameter in GetDictionaryParameter(value))
+                                {
+                                    yield return parameter;
+                                }
+                                continue;
+                            }
+                        }
+                        yield return GetSerializableParameter(value, property.Name, propertyType.FullName);
+                    }
+                    else if (propertyType.IsClass)
+                    {
+                        if (value != null)
+                        {
+                            foreach (var param in GetInputParams(value, propertyType))
+                            {
+                                yield return param;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        private IEnumerable<DbParameter> GetDictionaryParameter(object input)
+        {
+            if (input != null)
+            {
+                var dictionary = (IDictionary)input;
+                foreach (var key in dictionary.Keys)
+                {
+                    var value = dictionary[key];
+                    var valueType = value.GetType();
+                    if (valueType.IsValueType)
+                    {
+                        yield return impl.GetInputParameter(value, key.ToString(), valueType.FullName);
+                    }
+                    else if (valueType.IsSerializable)
+                    {
+                        yield return GetSerializableParameter(value, key.ToString(), valueType.FullName);
+                    }
+                }
+            }
+        }
+
+        private IEnumerable<DbParameter> GetInputParams(object input, Type objectType)
+        {
+            foreach (var property in objectType.GetPropertyItems())
+            {
+                Type propertyType = property.Type;
+                object value = property.GetValue(input);
+
+                if (propertyType.IsValueType)
+                {
+                    yield return impl.GetInputParameter(value, property.Name, propertyType.FullName);
+                }
+                else if (propertyType.IsSerializable)
+                {
+                    if (propertyType.IsGenericType)
+                    {
+                        //Check whether Dictionary Value
+                        if (typeof(IDictionary).IsAssignableFrom(propertyType))
+                        {
+                            foreach (var parameter in GetDictionaryParameter(value))
+                            {
+                                yield return parameter;
+                            }
+                        }
+                        continue;
+                    }
+                    yield return GetSerializableParameter(value, property.Name, propertyType.FullName);
+                }
+                else if (propertyType.IsClass)
+                {
+                    if (value != null)
+                    {
+                        foreach (var param in GetInputParams(value, propertyType))
+                        {
+                            yield return param;
+                        }
+                    }
+                }
+            }
+        }
+
+        private DbParameter GetSerializableParameter(object input, string name, string typeName)
         {
             switch (typeName)
             {
-                case Constants.TypeByte:
-                case Constants.TypeSByte:
-                    return SqlDbType.TinyInt;
-                case Constants.TypeInt16:
-                case Constants.TypeUInt16:
-                    return SqlDbType.SmallInt;
-                case Constants.TypeInt32:
-                case Constants.TypeUInt32:
-                    return SqlDbType.Int;
-                case Constants.TypeInt64:
-                case Constants.TypeUInt64:
-                    return SqlDbType.BigInt;
-                case Constants.TypeBool:
-                    return SqlDbType.Bit;
-                case Constants.TypeChar:
-                    return SqlDbType.Char;
-                case Constants.TypeDateTime:
-                    return SqlDbType.DateTime;
-                case Constants.TypeGuid:
-                    return SqlDbType.UniqueIdentifier;
-                case Constants.TypeFloat:
-                    return SqlDbType.Real;
-                case Constants.TypeDouble:
-                    return SqlDbType.Float;
-                case Constants.TypeDecimal:
-                    return SqlDbType.Decimal;
-                case Constants.TypeString:
-                case Constants.TypeStringArray:
-                    return SqlDbType.VarChar;
+                case TypeString:
+                    return impl.GetInputParameter(input, name, DbType.String);
+                case TypeDateTime:
+                    return impl.GetInputParameter(input, name, DbType.DateTime);
                 default:
-                    return SqlDbType.Variant;
+                    var type = impl.GetDbType(DbType.Object);
+                    var value = input != null ? Json.Serialization.JsonConvert.Serialize(input) : EmptyJsonObject;
+                    return impl.GetInputParameter(value, name, type);
+            }
+        }
+        #endregion
+
+
+        #region IDisposable Support
+        private bool disposedValue = false;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    impl.Dispose();
+                }
+
+                disposedValue = true;
             }
         }
 
-        private static SqlDbType GetMySqlDbType(DbType type)
-        {
-            switch (type)
-            {
-                case DbType.Guid:
-                    return SqlDbType.UniqueIdentifier;
-                case DbType.AnsiStringFixedLength:
-                case DbType.StringFixedLength:
-                case DbType.AnsiString:
-                case DbType.String:
-                    return SqlDbType.VarChar;
-                case DbType.Boolean:
-                    return SqlDbType.Bit;
-                case DbType.SByte:
-                case DbType.Byte:
-                    return SqlDbType.TinyInt;
-                case DbType.Date:
-                    return SqlDbType.Date;
-                case DbType.DateTime:
-                    return SqlDbType.DateTime;
-                case DbType.Time:
-                    return SqlDbType.Time;
-                case DbType.Single:
-                    return SqlDbType.Real;
-                case DbType.Double:
-                    return SqlDbType.Float;
-                case DbType.Int16:
-                case DbType.UInt16:
-                    return SqlDbType.SmallInt;
-                case DbType.Int32:
-                case DbType.UInt32:
-                    return SqlDbType.Int;
-                case DbType.Int64:
-                case DbType.UInt64:
-                    return SqlDbType.BigInt;
-                case DbType.Decimal:
-                case DbType.Currency:
-                case DbType.VarNumeric:
-                    return SqlDbType.Decimal;
-                case DbType.Binary:
-                    return SqlDbType.Binary;
-                case DbType.Object:
-                default:
-                    return SqlDbType.Variant;
-            }
-        }
 
-        public override int GetDbType(string typeName)
+        public void Dispose()
         {
-            return (int)GetMySqlDbType(typeName);
+            Dispose(true);
         }
+        #endregion
 
-        public override int GetDbType(DbType type)
-        {
-            return (int)GetMySqlDbType(type);
-        }
 
-        public override DbParameter GetInputParameter(object value, string propertyName, string typeName)
-        {
-            return new SqlParameter(propertyName, GetMySqlDbType(typeName))
-            {
-                Value = value,
-                Direction = ParameterDirection.Input
-            };
-        }
-
-        public override DbParameter GetInputParameter(object value, string propertyName, int type)
-        {
-            return new SqlParameter(propertyName, (SqlDbType)type)
-            {
-                Value = value,
-                Direction = ParameterDirection.Input
-            };
-        }
-
-        public override DbParameter GetInputParameter(object value, string propertyName, DbType type)
-        {
-            return new SqlParameter(propertyName, value)
-            {
-                DbType = type,
-                Direction = ParameterDirection.Input
-            };
-        }
-
-        public override DbParameter GetOutputParameter(PropertyDescription property)
-        {
-            return new SqlParameter(property.Name, GetMySqlDbType(property.PropertyType.FullName))
-            {
-                Direction = ParameterDirection.Output
-            };
-        }
     }
 }
-#endif

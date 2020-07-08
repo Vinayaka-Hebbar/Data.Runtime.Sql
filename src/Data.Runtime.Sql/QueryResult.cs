@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.Serialization;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Result of Non Query
@@ -13,6 +13,9 @@ namespace Data.Runtime.Sql
 #endif
         struct QueryResult
     {
+        internal const string SuccessMessage = "Success";
+        internal const string FailMessage = "Failed";
+
         public QueryResult(string message, int rows, OperationStatus status)
         {
             Message = message;
@@ -33,13 +36,14 @@ namespace Data.Runtime.Sql
 
         public static QueryResult Success(int rows)
         {
-            return new QueryResult(SqlTableRef.SuccessMessage, rows, OperationStatus.Success);
+            return new QueryResult(SuccessMessage, rows, OperationStatus.Success);
         }
+
         public static QueryResult Fail
         {
             get
             {
-                return new QueryResult(SqlTableRef.FailMessage, -1, OperationStatus.Error);
+                return new QueryResult(FailMessage, -1, OperationStatus.Error);
             }
         }
 

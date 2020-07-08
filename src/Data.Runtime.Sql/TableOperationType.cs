@@ -1,10 +1,12 @@
-﻿namespace Data.Runtime.Sql
+﻿namespace SqlDb.Data
 {
     public enum TableOperationType
     {
-        Insert = 0,
-        Delete = 1,
-        Retrieve = 2,
-        Update = 3
+        Insert = 1,
+        Delete = 2,
+        Retrieve = 4,
+        Update = 8,
+        Create = 16,
+        Batch = 32
     }
 }

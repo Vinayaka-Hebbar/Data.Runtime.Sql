@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel;
 using System.Reflection;
 
-namespace Data.Runtime.Sql.Utils
+namespace SqlDb.Data.Utils
 {
     public sealed class PropertyDescription
     {
@@ -41,25 +41,17 @@ namespace Data.Runtime.Sql.Utils
             return opImplicit;
         }
 
-        internal  bool TrySetValue(string name, object obj, object value)
+        internal bool TrySetValue(object obj, string name, object value)
         {
             switch (PropertyType.FullName)
             {
-                case Constants.TypeStringArray:
-                    string stringValue = value.ToString();
-                    if (string.IsNullOrEmpty(stringValue))
-                    {
-                        property.SetValue(obj, System.Linq.Enumerable.Empty<string>());
-                    }
-                    property.SetValue(obj, stringValue.Split(Constants.CommaChar));
-                    break;
                 case Constants.TypeDateTime:
                 case Constants.TypeString:
                     property.SetValue(obj, value);
                     break;
                 default:
                     if (value == null) return true;
-                    if (PropertyType.IsValueType)
+                    if (PropertyType.IsPrimitive)
                     {
                         property.SetValue(obj, value);
                         return true;
@@ -77,7 +69,7 @@ namespace Data.Runtime.Sql.Utils
                             instance = System.Activator.CreateInstance(PropertyType);
                             property.SetValue(obj, instance);
                         }
-                        return SubDescription.TrySetValue(name, instance, value);
+                        return SubDescription.TrySetValue(instance, name, value);
                     }
                     //Try Implicit cast
                     var castMethod = GetImplicitOperator(value.GetType());

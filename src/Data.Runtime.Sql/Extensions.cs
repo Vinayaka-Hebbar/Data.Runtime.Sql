@@ -4,9 +4,8 @@ using System.Data.Common;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
-using static Data.Runtime.Sql.Constants;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Extension Methods
@@ -23,32 +22,42 @@ namespace Data.Runtime.Sql
             return properties.Where(property => property.IsDefined(attributeType, false));
         }
 
+        static TAttribute GetCustomAttribute<TAttribute>(this MemberInfo member) where TAttribute : Attribute
+        {
+            var attributes = member.GetCustomAttributes(typeof(TAttribute), false);
+            if (attributes.Length == 0)
+                return null;
+            return (TAttribute)attributes[0];
+        }
+
         internal static IEnumerable<Utils.PropertyDescription> GetPropertyDescriptions(this Type type)
         {
-            foreach (var property in type.GetProperties()
-                .Where(p => p.IsDefined(typeof(DataMemberAttribute), false)))
+            foreach (var property in type.GetProperties())
             {
                 var propertyType = property.PropertyType;
-                var attribute = (DataMemberAttribute)property.GetCustomAttribute(typeof(DataMemberAttribute));
-                var descriptor = new Utils.PropertyDescription(attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired, property);
-                if (propertyType.IsClass && propertyType.IsSerializable == false)
+                var attr = property.GetCustomAttribute<DataMemberAttribute>();
+                if (attr != null)
                 {
-                    if (propertyType.IsDefined(typeof(DataContractAttribute), false))
+                    var descriptor = new Utils.PropertyDescription(attr.Name ?? property.Name, attr.Order, attr.IsRequired, property);
+                    if (propertyType.IsClass && propertyType.IsSerializable == false)
                     {
-                        descriptor.SubDescription = new Utils.PropertyDescriptions(GetPropertyDescriptions(propertyType));
-                    }
-                };
-                yield return descriptor;
+                        if (propertyType.IsDefined(typeof(DataContractAttribute), false))
+                        {
+                            descriptor.SubDescription = new Utils.PropertyDescriptions(GetPropertyDescriptions(propertyType));
+                        }
+                    };
+                    yield return descriptor;
+                }
             }
         }
 
         internal static IEnumerable<Utils.PropertyItem> GetPropertyItems(this Type type)
         {
-            foreach (var property in type.GetProperties()
-                .Where(p => p.IsDefined(typeof(DataMemberAttribute), false)))
+            foreach (var property in type.GetProperties())
             {
-                var attribute = (DataMemberAttribute)property.GetCustomAttribute(typeof(DataMemberAttribute));
-                yield return new Utils.PropertyItem(property, attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired);
+                var attribute = property.GetCustomAttribute<DataMemberAttribute>();
+                if (attribute != null)
+                    yield return new Utils.PropertyItem(property, attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired);
             }
         }
 
@@ -64,47 +73,28 @@ namespace Data.Runtime.Sql
             }
         }
 
-        internal static object TryGetValue(this PropertyInfo property, object obj, Type type)
-        {
-            var value = property.GetValue(obj);
-            if (type.IsEnum)
-                return type.GetField(EnumValue, InstantPublic).GetValue(value);
-            return value;
-        }
-
         internal static IEnumerable<DbParameter> Latest(this IEnumerable<DbParameter> parameters)
         {
             List<DbParameter> result = new List<DbParameter>();
             foreach (var item in parameters)
             {
-                if (result.Any(p => p.ParameterName == item.ParameterName))
+                var index = result.FindIndex(p => string.Equals(p.ParameterName, item.ParameterName));
+                // no match item found
+                if (index == -1)
                 {
-                    var index = result.IndexOf(p => p.ParameterName == item.ParameterName && !p.Value.Equals(item.Value));
+                    result.Add(item);
+                }
+                else
+                {
+                    // continue match from here
+                    index = result.FindIndex(index, p => string.Equals(p.ParameterName, item.ParameterName) && !p.Value.Equals(item.Value));
                     if (index != -1)
                     {
                         result[index] = item;
                     }
                 }
-                else
-                {
-                    result.Add(item);
-                }
             }
             return result;
-        }
-
-        internal static int IndexOf<TSource>(this IEnumerable<TSource> source, Func<TSource, bool> prediction)
-        {
-            int i;
-            var iterator = source.GetEnumerator();
-            TSource current;
-            for (i = 0; iterator.MoveNext(); i++)
-            {
-                current = iterator.Current;
-                if (prediction(current))
-                    return i;
-            }
-            return -1;
         }
     }
 }

@@ -1,13 +1,12 @@
 ﻿using System.Data;
 using System.Data.Common;
-using System.Reflection;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data.Common
 {
     /// <summary>
     /// Interface for Client Implementation of DbParameter 
     /// </summary>
-    public interface IDbParameterImpl
+    public interface ISqlParameter
     {
         int GetDbType(string typeName);
         int GetDbType(DbType type);

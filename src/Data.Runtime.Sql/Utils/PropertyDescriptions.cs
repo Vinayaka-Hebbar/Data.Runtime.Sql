@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Data.Runtime.Sql.Utils
+namespace SqlDb.Data.Utils
 {
     internal sealed class PropertyDescriptions : IEnumerable<PropertyDescription>
     {
@@ -18,15 +18,15 @@ namespace Data.Runtime.Sql.Utils
             return Properties.Values.GetEnumerator();
         }
 
-        public bool TrySetValue(string name, object obj, object value)
+        public bool TrySetValue(object obj, string name, object value)
         {
             if (Properties.TryGetValue(name, out PropertyDescription description))
             {
-                return description.TrySetValue(name, obj, value);
+                return description.TrySetValue(obj, name, value);
             }
             foreach (var sub in Properties.Values.Where(p => p.SubDescription != null))
             {
-                if(sub.TrySetValue(name, obj, value))
+                if (sub.TrySetValue(obj, name, value))
                 {
                     return true;
                 }
@@ -36,7 +36,7 @@ namespace Data.Runtime.Sql.Utils
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return Properties.GetEnumerator();
+            return Properties.Values.GetEnumerator();
         }
     }
 }

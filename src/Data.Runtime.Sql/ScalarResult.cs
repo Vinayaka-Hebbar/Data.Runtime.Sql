@@ -1,6 +1,6 @@
 ﻿using System.Runtime.Serialization;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Result of Scalar
@@ -33,14 +33,14 @@ namespace Data.Runtime.Sql
 
         public static ScalarResult Success(object value)
         {
-            return new ScalarResult(SqlTableRef.SuccessMessage, value, OperationStatus.Success);
+            return new ScalarResult(QueryResult.SuccessMessage, value, OperationStatus.Success);
         }
 
         public static ScalarResult Fail
         {
             get
             {
-                return new ScalarResult(SqlTableRef.FailMessage, -1, OperationStatus.Error);
+                return new ScalarResult(QueryResult.FailMessage, -1, OperationStatus.Error);
             }
         }
 

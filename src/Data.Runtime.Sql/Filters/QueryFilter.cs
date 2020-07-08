@@ -1,18 +1,18 @@
-﻿using Data.Runtime.Sql.Queries;
+﻿using SqlDb.Data.Queries;
 
 /**
  * @author Vinayaka Hebbar
 **/
 
-namespace Data.Runtime.Sql.Filters
+namespace SqlDb.Data.Filters
 {
     public class QueryFilter<TElement> : ColumnFilter where TElement : class, new()
     {
-        public QueryFilter(string column, TableQueryBase<TElement> query, FilterType filterType) : base(column, filterType)
+        public QueryFilter(string column, TableQueryBase query, FilterType filterType) : base(column, filterType)
         {
             Query = query;
         }
 
-        public TableQueryBase<TElement> Query { get; }
+        public TableQueryBase Query { get; }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Constant Values
@@ -31,7 +31,6 @@ namespace Data.Runtime.Sql
         public const string TypeFloat = "System.Float";
         public const string TypeDouble = "System.Double";
         public const string TypeDecimal = "System.Decimal";
-        public const string TypeStringArray = "System.String[]";
         public const string TypeDateTime = "System.DateTime";
         public const string TypeGuid = "System.Guid";
 

@@ -1,49 +1,42 @@
-﻿using Data.Runtime.Sql.Queries;
+﻿using SqlDb.Data.Common;
+using SqlDb.Data.Queries;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.Linq;
-using System.Text;
 using System.Threading.Tasks;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
+    //todo generic argument
     /// <summary>
     /// Base Class for Connection TableRef
     /// </summary>
-    public class SqlTableRef 
+    public class SqlTableRef : SqlTable
     {
-        internal const string SuccessMessage = "Success";
-        internal const string FailMessage = "Failed";
-
-        public SqlTableRef(string tableName, IDbClientImpl impl)
+        public SqlTableRef(string tableName, ISqlClient client) : base(tableName)
         {
-            TableName = tableName;
-            ClientImpl = impl;
+            Client = client;
         }
 
-        public IDbClientImpl ClientImpl { get; }
+        public ISqlClient Client { get; }
 
-        public string TableName { get; }
-
-        public async Task<IList<TElement>> ExecuteQueryAsync<TElement>(string queryString, Action<TElement> onElementCreated) where TElement : class, new()
+        public override async Task<IList<TElement>> ExecuteQueryAsync<TElement>(QueryString queryString, Action<TElement> onElementCreated)
         {
             IList<TElement> elements = new List<TElement>();
-            IEnumerable<Utils.PropertyDescription> propertieList = typeof(TElement).GetPropertyDescriptions();
-            var propertiesDesc = new Utils.PropertyDescriptions(propertieList);
-            using (var command = ClientImpl.CreateCommand(queryString))
+            var propertiesDesc = new Utils.PropertyDescriptions(typeof(TElement).GetPropertyDescriptions());
+            using (var command = Client.CreateCommand(queryString.Value))
             {
                 using (DbDataReader reader = await command.ExecuteReaderAsync())
                 {
                     string[] fields = reader.GetFields().ToArray();
                     while (await reader.ReadAsync())
                     {
-                        TElement element = new TElement();
+                        var element = new TElement();
                         for (int index = 0; index < fields.Length; index++)
                         {
                             if (reader.IsDBNull(index)) continue;
-                            string field = fields[index];
-                            propertiesDesc.TrySetValue(field, element, reader.GetValue(index));
+                            propertiesDesc.TrySetValue(element, fields[index], reader.GetValue(index));
                         }
                         onElementCreated(element);
                         elements.Add(element);
@@ -53,9 +46,9 @@ namespace Data.Runtime.Sql
             return elements;
         }
 
-        public async Task<QueryResult> ExecuteNonQueryAsync(string queryString)
+        public override async Task<QueryResult> ExecuteNonQueryAsync(QueryString queryString)
         {
-            using (DbCommand command = ClientImpl.CreateCommand(queryString))
+            using (DbCommand command = Client.CreateCommand(queryString.Value))
             {
                 try
                 {
@@ -73,14 +66,14 @@ namespace Data.Runtime.Sql
         /// Get the sql last inserted Id
         /// </summary>
         /// <returns>Unsigned int</returns>
-        public virtual Task<ulong> GetLastInsertId()
+        public virtual Task<ulong> GetLastInsertId<TElement>()
         {
             return Task.FromResult<ulong>(0);
         }
 
-        public async Task<ScalarResult> ExecuteScalarAsync(string queryString)
+        public override async Task<ScalarResult> ExecuteScalarAsync(QueryString queryString)
         {
-            using (DbCommand command = ClientImpl.CreateCommand(queryString))
+            using (DbCommand command = Client.CreateCommand(queryString.Value))
             {
                 try
                 {
@@ -94,134 +87,29 @@ namespace Data.Runtime.Sql
             }
         }
 
-        public async Task<IList<TElement>> ExecuteQuerySegmentAsync<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
+        public async Task<IList<TElement>> ExecuteQuerySegmentAsync<TElement>(TableQueryBase query) where TElement : new()
         {
-            string queryString = BuildQuery(query);
-            return await ExecuteQueryAsync(queryString, query.ElementCreated);
+            string queryString = BuildQuery<TElement>(query);
+            return await ExecuteQueryAsync(new QueryString(queryString, query.OperationType), TableSelectQuery<TElement>.nothing);
         }
 
-        public async Task<QueryResult> ExecuteNonQueryAsync<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
+        public async Task<QueryResult> ExecuteNonQueryAsync<TElement>(TableQueryBase query) where TElement : new()
         {
-            var queryString = BuildQuery(query);
-            return await ExecuteNonQueryAsync(queryString);
+            var queryString = BuildQuery<TElement>(query);
+            return await ExecuteNonQueryAsync(new QueryString(queryString, query.OperationType));
         }
 
-        public async Task<ScalarResult> ExecuteScalarAsync<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
+        public async Task<ScalarResult> ExecuteScalarAsync<TElement>(TableQueryBase query) where TElement : new()
         {
-            var queryString = BuildQuery(query);
-            return await ExecuteScalarAsync(queryString);
+            var queryString = BuildQuery<TElement>(query);
+            return await ExecuteScalarAsync(new QueryString(queryString, query.OperationType));
         }
 
 
-        public async Task<TElement> ExecuteQueryAsync<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
+        public async Task<TElement> ExecuteQueryAsync<TElement>(TableQueryBase query) where TElement : new()
         {
-            IList<TElement> result = await ExecuteQuerySegmentAsync(query);
+            IList<TElement> result = await ExecuteQuerySegmentAsync<TElement>(query);
             return result.FirstOrDefault();
-        }
-
-        protected virtual object GetValue(object value)
-        {
-            if (value == null) return "NULL";
-            Type type = value.GetType();
-            switch (type.FullName)
-            {
-                case Constants.TypeInt16:
-                case Constants.TypeInt32:
-                case Constants.TypeBool:
-                case Constants.TypeDouble:
-                    return value;
-                case Constants.TypeStringArray:
-                    return $"'{string.Join(Constants.Comma, (string[])value)}'";
-                case Constants.TypeDateTime:
-                    return $"'{((DateTime)value).ToString(Constants.DateFormat)}'";
-                case Constants.TypeString:
-                    return $"'{value}'";
-                default:
-                    if (type.IsEnum)
-                        return type.GetField(Constants.EnumValue, Constants.InstantPublic).GetValue(value);
-                    return $"'{value}'";
-            }
-        }
-
-        protected virtual string BuildQuery<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
-        {
-            switch (query.OperationType)
-            {
-                case TableOperationType.Insert:
-                    return BuildInsertQuery(query);
-                case TableOperationType.Delete:
-                    return BuildDeleteQuery(query);
-                case TableOperationType.Retrieve:
-                    return BuildRetrieveQuery(query);
-                case TableOperationType.Update:
-                    return BuildUpdateQuery(query);
-            }
-            return string.Empty;
-        }
-
-        protected virtual string BuildUpdateQuery<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
-        {
-            TableUpdateQuery<TElement> updateQuery = query as TableUpdateQuery<TElement>;
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("update `{0}` set ", TableName);
-            sb.Append(string.Join(Constants.Comma, updateQuery.Items.Select(column => $"`{column.Key}` = {GetValue(column.Value)}")));
-            sb.AppendFormat(" where {0}", updateQuery.WhereFilterString);
-            return sb.ToString();
-        }
-
-        protected virtual string BuildInsertQuery<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
-        {
-            TableInsertQuery<TElement> insertQuery = query as TableInsertQuery<TElement>;
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("INSERT INTO `{0}`", TableName);
-            if (insertQuery.Columns.Count() > 0)
-            {
-                sb.AppendFormat(" ({0}) ", string.Join(",", insertQuery.Columns.Select(column => $"`{column}`")));
-            }
-            sb.Append(" VALUES ");
-            sb.AppendFormat("({0})", string.Join(",", insertQuery.Values.Select(GetValue)));
-            return sb.ToString();
-        }
-
-
-
-        protected virtual string BuildDeleteQuery<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
-        {
-            TableFilterQuery<TElement> filterQuery = query as TableFilterQuery<TElement>;
-            StringBuilder sb = new StringBuilder();
-            sb.AppendFormat("delete from `{0}`", TableName);
-            if (!string.IsNullOrEmpty(filterQuery.WhereFilterString))
-            {
-                sb.AppendFormat(" where {0}", filterQuery.WhereFilterString);
-            }
-            return sb.ToString();
-        }
-
-        protected virtual string BuildRetrieveQuery<TElement>(TableQueryBase<TElement> query) where TElement : class, new()
-        {
-            TableSelectQuery<TElement> selectQuery = query as TableSelectQuery<TElement>;
-            StringBuilder sb = new StringBuilder();
-            sb.Append("select ");
-            if (selectQuery.Columns.Count() == 0)
-            {
-                sb.Append("*");
-            }
-            else
-            {
-                sb.Append(string.Join(",", selectQuery.Columns.Select(column => $"`{column}`")));
-            }
-            sb.Append(" ");
-            sb.AppendFormat("from `{0}`", TableName);
-            if (!string.IsNullOrEmpty(selectQuery.WhereFilterString))
-            {
-                sb.Append(" where ");
-                sb.Append(selectQuery.WhereFilterString);
-            }
-            if (selectQuery.HasLimit)
-            {
-                sb.AppendFormat(" limit {0}", selectQuery.Max);
-            }
-            return sb.ToString();
         }
 
     }

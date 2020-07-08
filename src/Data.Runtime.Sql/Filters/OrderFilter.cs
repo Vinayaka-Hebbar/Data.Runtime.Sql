@@ -2,7 +2,7 @@
  * @author Vinayaka Hebbar
 **/
 
-namespace Data.Runtime.Sql.Filters
+namespace SqlDb.Data.Filters
 {
     public class OrderFilter : ConditionFilter
     {

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Serialization;
 
-namespace Data.Runtime.Sql
+namespace SqlDb.Data
 {
     /// <summary>
     /// Reflection Extension Methods
@@ -14,13 +14,24 @@ namespace Data.Runtime.Sql
     {
         public static IEnumerable<string> GetDataMemberNames(this Type type)
         {
-            IEnumerable<PropertyInfo> properties = type.GetProperties(Constants.InstantPublic).GetPropertiesWithAttribute(typeof(DataMemberAttribute));
-            return properties.SelectIf(GetColumnName, name => name != null);
+            foreach (var property in type.GetProperties())
+            {
+                if (TryGetColumnName(property, out string name))
+                {
+                    yield return name;
+                }
+            }
         }
 
         public static IEnumerable<string> GetDataMemberNames(this IEnumerable<PropertyInfo> properties)
         {
-            return properties.SelectIf(GetColumnName, name => name != null);
+            foreach (var property in properties)
+            {
+                if(TryGetColumnName(property, out string name))
+                {
+                    yield return name;
+                }
+            }
         }
 
         public static string GetDataMemeberName(this PropertyInfo property)
@@ -86,12 +97,57 @@ namespace Data.Runtime.Sql
             return null;
         }
 
+        internal static bool TryGetColumnName(PropertyInfo property, out string columnName)
+        {
+            var attrData = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType == typeof(DataMemberAttribute));
+            if (attrData != null)
+            {
+                var isRequired = attrData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value);
+                var name = attrData.NamedArguments.FirstOrDefault(arg => arg.MemberName == Constants.DataMemberName).TypedValue.Value;
+                if (name != null)
+                {
+                    columnName = name.ToString();
+                    return true;
+                }
+                // Name not found
+                columnName = property.Name;
+                return true;
+            }
+            columnName = null;
+            return false;
+        }
+
         internal static IEnumerable<string> GetFields(this DbDataReader reader)
         {
             for (int index = 0; index < reader.FieldCount; index++)
             {
                 yield return reader.GetName(index);
             }
+        }
+
+        internal static KeyValuePair<string, object> GetPrimaryKey<TElement>(TElement element)
+        {
+            if (element == null)
+                throw new ArgumentNullException(nameof(element));
+            PropertyInfo keyProperty = GetKeyProperty(element.GetType());
+            var name = GetColumnName(keyProperty);
+            var value = keyProperty.GetValue(element, new object[0]);
+            if (value == null)
+                throw new NullReferenceException(nameof(value));
+            return new KeyValuePair<string, object>(name, value);
+        }
+
+        internal static string GetPrimaryKey(Type type)
+        {
+            return GetColumnName(GetKeyProperty(type));
+        }
+
+        private static PropertyInfo GetKeyProperty(Type type)
+        {
+            var keyProperty = type.GetProperties().FirstOrDefault(p => p.IsDefined(typeof(System.ComponentModel.DataAnnotations.KeyAttribute)));
+            if (keyProperty == null)
+                throw new KeyNotFoundException("Key property not found");
+            return keyProperty;
         }
     }
 }

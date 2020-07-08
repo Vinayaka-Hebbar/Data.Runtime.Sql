@@ -1,4 +1,4 @@
-﻿namespace Data.Runtime.Sql.Utils
+﻿namespace SqlDb.Data.Utils
 {
     public
 #if LATEST_VS

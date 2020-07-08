@@ -1,24 +1,17 @@
 ﻿using System;
 
-namespace Data.Runtime.Sql.Queries
+namespace SqlDb.Data.Queries
 {
-    public abstract class TableQueryBase<TElement> where TElement : class, new()
+    public abstract class TableQueryBase
     {
-        protected TableQueryBase(TableOperationType operationType)
+        protected readonly SqlTable Table;
+        protected TableQueryBase(SqlTable table)
         {
-            OperationType = operationType;
+            Table = table;
         }
 
-        public TableOperationType OperationType { get; }
+        public abstract TableOperationType OperationType { get; }
 
-        private static readonly Action<TElement> nothing = (e) => { };
-
-        public Action<TElement> ElementCreated { get; private set; } = nothing;
-
-        public TableQueryBase<TElement> OnElementCreated(Action<TElement> onRefElement)
-        {
-            ElementCreated = onRefElement;
-            return this;
-        }
+        public abstract string GetQueryString();
     }
 }
