@@ -30,23 +30,14 @@ namespace SqlDb.Data
             return (TAttribute)attributes[0];
         }
 
-        internal static IEnumerable<Utils.PropertyDescription> GetPropertyDescriptions(this Type type)
+        internal static IEnumerable<Reflection.PropertyDescription> GetPropertyDescriptions(this Type type)
         {
             foreach (var property in type.GetProperties())
             {
-                var propertyType = property.PropertyType;
                 var attr = property.GetCustomAttribute<DataMemberAttribute>();
                 if (attr != null)
                 {
-                    var descriptor = new Utils.PropertyDescription(attr.Name ?? property.Name, attr.Order, attr.IsRequired, property);
-                    if (propertyType.IsClass && propertyType.IsSerializable == false)
-                    {
-                        if (propertyType.IsDefined(typeof(DataContractAttribute), false))
-                        {
-                            descriptor.SubDescription = new Utils.PropertyDescriptions(GetPropertyDescriptions(propertyType));
-                        }
-                    };
-                    yield return descriptor;
+                    yield return new Reflection.PropertyDescription(attr.Name ?? property.Name, attr.Order, attr.IsRequired, property);
                 }
             }
         }
@@ -59,42 +50,6 @@ namespace SqlDb.Data
                 if (attribute != null)
                     yield return new Utils.PropertyItem(property, attribute.Name ?? property.Name, attribute.Order, attribute.IsRequired);
             }
-        }
-
-        internal static IEnumerable<TReturn> SelectIf<TSource, TReturn>(this IEnumerable<TSource> elements, Func<TSource, TReturn> select, Func<TReturn, bool> condition)
-        {
-            foreach (TSource element in elements)
-            {
-                TReturn selection = select(element);
-                if (condition(selection))
-                {
-                    yield return selection;
-                }
-            }
-        }
-
-        internal static IEnumerable<DbParameter> Latest(this IEnumerable<DbParameter> parameters)
-        {
-            List<DbParameter> result = new List<DbParameter>();
-            foreach (var item in parameters)
-            {
-                var index = result.FindIndex(p => string.Equals(p.ParameterName, item.ParameterName));
-                // no match item found
-                if (index == -1)
-                {
-                    result.Add(item);
-                }
-                else
-                {
-                    // continue match from here
-                    index = result.FindIndex(index, p => string.Equals(p.ParameterName, item.ParameterName) && !p.Value.Equals(item.Value));
-                    if (index != -1)
-                    {
-                        result[index] = item;
-                    }
-                }
-            }
-            return result;
         }
     }
 }

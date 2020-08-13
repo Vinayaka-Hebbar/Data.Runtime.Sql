@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace SqlDb.Data
 {
-    public class SqlTable 
+    public class SqlTable : ISqlTable
     {
         public SqlTable(string tableName)
         {
@@ -24,6 +24,11 @@ namespace SqlDb.Data
         public virtual Task<IList<TElement>> ExecuteQueryAsync<TElement>(QueryString queryString, Action<TElement> onElementCreated) where TElement : new()
         {
             throw new NotImplementedException();
+        }
+
+        public Task<IList<TElement>> ExecuteQueryAsync<TElement>(QueryString queryString) where TElement : new()
+        {
+            return ExecuteQueryAsync(queryString, TableSelectQuery<TElement>.nothing);
         }
 
         public virtual Task<ScalarResult> ExecuteScalarAsync(QueryString queryString)
@@ -46,11 +51,11 @@ namespace SqlDb.Data
                 case Constants.TypeString:
                     return $"'{value}'";
                 default:
-                    return $"'{value}'";
+                    return value.ToString();
             }
         }
 
-        protected virtual string BuildQuery<TElement>(TableQueryBase query) where TElement : new()
+        public virtual string BuildQuery<TElement>(TableQueryBase query) where TElement : new()
         {
             switch (query.OperationType)
             {
@@ -62,25 +67,8 @@ namespace SqlDb.Data
                     return BuildRetrieveQuery((TableSelectQuery<TElement>)query);
                 case TableOperationType.Update:
                     return BuildUpdateQuery((TableUpdateQuery<TElement>)query);
-                case TableOperationType.Create:
-                    return BuildCreateQuery((TableCreateQuery<TElement>)query);
             }
             return string.Empty;
-        }
-
-        public virtual string BuildCreateQuery<TElement>(TableCreateQuery<TElement> tableCreateQuery)
-        {
-            sb.Append(string.Join(Constants.Comma, query.Items.Select(column => $"`{column.Key}` = {GetValue(column.Value)}")));
-            if (!string.IsNullOrEmpty(query.WhereFilter))
-            {
-                sb.Append($" where {query.WhereFilter}");
-            }
-            else
-            {
-                var primary = ReflectionHelper.GetPrimaryKey(query.Element);
-                sb.AppendFormat($" where `{primary.Key}` = {GetValue(primary.Value)}");
-            }
-            return sb.ToString();
         }
 
         public virtual string BuildUpdateQuery<TElement>(TableUpdateQuery<TElement> query)

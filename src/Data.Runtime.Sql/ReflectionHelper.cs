@@ -27,7 +27,7 @@ namespace SqlDb.Data
         {
             foreach (var property in properties)
             {
-                if(TryGetColumnName(property, out string name))
+                if (TryGetColumnName(property, out string name))
                 {
                     yield return name;
                 }
@@ -102,7 +102,11 @@ namespace SqlDb.Data
             var attrData = property.CustomAttributes.FirstOrDefault(attr => attr.AttributeType == typeof(DataMemberAttribute));
             if (attrData != null)
             {
-                var isRequired = attrData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value);
+                if(attrData.NamedArguments.Any(arg => arg.MemberName == Constants.IsRequired && !(bool)arg.TypedValue.Value))
+                {
+                    columnName = null;
+                    return false;
+                }
                 var name = attrData.NamedArguments.FirstOrDefault(arg => arg.MemberName == Constants.DataMemberName).TypedValue.Value;
                 if (name != null)
                 {

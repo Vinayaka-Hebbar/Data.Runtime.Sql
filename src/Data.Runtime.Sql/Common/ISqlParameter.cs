@@ -14,6 +14,6 @@ namespace SqlDb.Data.Common
         DbParameter GetInputParameter(object value, string propertyName, int type);
         DbParameter GetInputParameter(object value, string propertyName, DbType type);
         //Todo replace property info with parameters
-        DbParameter GetOutputParameter(Utils.PropertyDescription property);
+        DbParameter GetOutputParameter(IPropertyDescription property);
     }
 }

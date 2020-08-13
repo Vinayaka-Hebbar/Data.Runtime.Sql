@@ -4,12 +4,14 @@
     {
         public readonly string Name;
         public readonly string Type;
-        public readonly string Constraints;
+        public readonly bool Nullable;
+        public readonly object[] Constraints;
 
-        public TableColumn(string name, string type, string constraints)
+        public TableColumn(string name, string type, bool nullable = true, object[] constraints = null)
         {
             Name = name;
             Type = type;
+            Nullable = nullable;
             Constraints = constraints;
         }
     }

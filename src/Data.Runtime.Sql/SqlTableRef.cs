@@ -1,5 +1,6 @@
 ﻿using SqlDb.Data.Common;
 using SqlDb.Data.Queries;
+using SqlDb.Data.Reflection;
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -24,7 +25,7 @@ namespace SqlDb.Data
         public override async Task<IList<TElement>> ExecuteQueryAsync<TElement>(QueryString queryString, Action<TElement> onElementCreated)
         {
             IList<TElement> elements = new List<TElement>();
-            var propertiesDesc = new Utils.PropertyDescriptions(typeof(TElement).GetPropertyDescriptions());
+            var propertiesDesc = new PropertyDescriptions(typeof(TElement).GetPropertyDescriptions());
             using (var command = Client.CreateCommand(queryString.Value))
             {
                 using (DbDataReader reader = await command.ExecuteReaderAsync())
@@ -36,7 +37,7 @@ namespace SqlDb.Data
                         for (int index = 0; index < fields.Length; index++)
                         {
                             if (reader.IsDBNull(index)) continue;
-                            propertiesDesc.TrySetValue(element, fields[index], reader.GetValue(index));
+                            propertiesDesc.SetValue(fields[index], reader.GetValue(index), element);
                         }
                         onElementCreated(element);
                         elements.Add(element);
@@ -44,6 +45,53 @@ namespace SqlDb.Data
                 }
             }
             return elements;
+        }
+
+        public async Task<IList<TElement>> ExecuteQueryAsync<TElement>(QueryString queryString, Func<ColumnValue[], TElement> elementProvider)
+        {
+            IList<TElement> elements = new List<TElement>();
+            using (var command = Client.CreateCommand(queryString.Value))
+            {
+                using (DbDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    string[] fields = reader.GetFields().ToArray();
+                    var arguments = new ColumnValue[fields.Length];
+                    while (await reader.ReadAsync())
+                    {
+                        for (int index = 0; index < fields.Length; index++)
+                        {
+                            if (reader.IsDBNull(index)) continue;
+                            arguments[index] = new ColumnValue(fields[index], reader.GetValue(index));
+                        }
+                        elements.Add(elementProvider(arguments));
+                    }
+                }
+            }
+            return elements;
+        }
+
+        public async Task<TableResult> ExecuteQueryAsync(QueryString queryString)
+        {
+            using (var command = Client.CreateCommand(queryString.Value))
+            {
+                using (DbDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    string[] fields = reader.GetFields().ToArray();
+                    TableResult result = new TableResult(fields);
+                    int length = fields.Length;
+                    while (await reader.ReadAsync())
+                    {
+                        var row = new object[length];
+                        for (int index = 0; index < length; index++)
+                        {
+                            if (reader.IsDBNull(index)) continue;
+                            row[index] = reader.GetValue(index);
+                        }
+                        result.Rows.Add(row);
+                    }
+                    return result;
+                }
+            }
         }
 
         public override async Task<QueryResult> ExecuteNonQueryAsync(QueryString queryString)

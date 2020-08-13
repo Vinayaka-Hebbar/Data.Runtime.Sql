@@ -1,16 +1,15 @@
 ﻿#if NETFRAMEWORK
-using SqlDb.Data.Utils;
 using System.Data;
 using System.Data.Common;
 using System.Data.SqlClient;
 
 namespace SqlDb.Data
 {
-    public sealed class MsSqlClient : SqlClientBase<SqlConnection>
+    public sealed class MSSqlClient : SqlClientBase<SqlConnection>
     {
         private SqlConnection connection;
 
-        public MsSqlClient(IConnectionOptions options) : base(options)
+        public MSSqlClient(IConnectionOptions options) : base(options)
         {
         }
 
@@ -166,9 +165,9 @@ namespace SqlDb.Data
             };
         }
 
-        public override DbParameter GetOutputParameter(PropertyDescription property)
+        public override DbParameter GetOutputParameter(IPropertyDescription property)
         {
-            return new SqlParameter(property.Name, GetMySqlDbType(property.PropertyType.FullName))
+            return new SqlParameter(property.Name, GetMySqlDbType(property.TypeName))
             {
                 Direction = ParameterDirection.Output
             };

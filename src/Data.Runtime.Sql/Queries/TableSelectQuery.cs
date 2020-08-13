@@ -34,6 +34,15 @@ namespace SqlDb.Data.Queries
             return this;
         }
 
+        public TableSelectQuery<TElement> AppendColumn(string columnName)
+        {
+            var newColumns = new string[Columns.Count + 1];
+            Columns.CopyTo(newColumns, 0);
+            newColumns[Columns.Count] = columnName;
+            Columns = newColumns;
+            return this;
+        }
+
         public TableSelectQuery<TElement> Limit(uint max)
         {
             Max = max;
@@ -42,7 +51,9 @@ namespace SqlDb.Data.Queries
             return this;
         }
 
-        internal static readonly Action<TElement> nothing = (e) => { };
+        internal static readonly Action<TElement> nothing = Nothing;
+
+        static void Nothing(TElement e) { }
 
         public Action<TElement> ElementCreated { get; private set; } = nothing;
 

@@ -13,7 +13,7 @@ namespace SqlDb.Data
     {
         protected SqlClientBase(IConnectionOptions options)
         {
-            Options = options ?? throw new System.ArgumentNullException(nameof(options));
+            Options = options ?? throw new System.ArgumentNullException(nameof(options), "Connection option is empty");
         }
 
         public abstract Task<bool> ConnectAsync();
@@ -47,7 +47,7 @@ namespace SqlDb.Data
 
         public abstract DbCommand CreateProcedureCall(string procedureName);
 
-        public abstract DbParameter GetOutputParameter(Utils.PropertyDescription property);
+        public abstract DbParameter GetOutputParameter(IPropertyDescription property);
 
         public abstract DbParameter GetInputParameter(object value, string propertyName, string typeName);
 

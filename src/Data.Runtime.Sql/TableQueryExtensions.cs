@@ -32,6 +32,11 @@ namespace SqlDb.Data
             return new TableInsertQuery<TElement>(element, table);
         }
 
+        public static TableInsertQuery<TElement> CreateInsert<TElement>(this SqlTable table)
+        {
+            return new TableInsertQuery<TElement>(table);
+        }
+
         public static TableSelectQuery<TElement> OrderBy<TElement>(this TableSelectQuery<TElement> query, string condition) where TElement : class, new()
         {
             query.Filters.Add(new OrderFilter(FilterType.OrderBy) { Condition = condition });

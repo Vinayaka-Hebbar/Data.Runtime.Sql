@@ -14,13 +14,16 @@ namespace SqlDb.Data.Queries
     {
         protected internal TableInsertQuery(TElement element, SqlTable table) : base(table)
         {
-            Element = element;
             IEnumerable<PropertyInfo> properties = element.GetType().GetProperties().GetPropertiesWithAttribute(typeof(DataMemberAttribute));
             Columns = properties.GetDataMemberNames().ToArray();
             Values = properties.Select(property => property.GetValue(element)).ToArray();
         }
 
-        public TElement Element { get; }
+        protected internal TableInsertQuery(SqlTable table) : base(table)
+        {
+            IEnumerable<PropertyInfo> properties = typeof(TElement).GetProperties().GetPropertiesWithAttribute(typeof(DataMemberAttribute));
+            Columns = properties.GetDataMemberNames().ToArray();
+        }
 
         public ICollection<string> Columns { get; set; }
 

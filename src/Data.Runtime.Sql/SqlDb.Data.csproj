@@ -2,11 +2,13 @@
 
   <PropertyGroup>
     <TargetFrameworks>net45;netstandard2.0;netcoreapp2.0</TargetFrameworks>
-    <Version>1.0.0</Version>
+    <Version>1.0.4</Version>
   </PropertyGroup>
 
   <PropertyGroup>
     <DefineConstants Condition="'$(VisualStudioVersion)'&gt;= 16">LATEST_VS</DefineConstants>
+    <SignAssembly>true</SignAssembly>
+    <AssemblyOriginatorKeyFile>ProjectAssemblyKey.pfx</AssemblyOriginatorKeyFile>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)'=='Release'">
@@ -17,10 +19,19 @@
     <PackageProjectUrl>https://github.com/Vinayaka-Hebbar/App.ComponentModel.Sql.git</PackageProjectUrl>
   </PropertyGroup>
 
+  <PropertyGroup Condition="'$(Configuration)'=='Release'">
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
   <ItemGroup>
+    <Compile Remove="Constraints\**" />
     <Compile Remove="MySql\**" />
+    <EmbeddedResource Remove="Constraints\**" />
     <EmbeddedResource Remove="MySql\**" />
+    <None Remove="Constraints\**" />
     <None Remove="MySql\**" />
+    <Compile Remove="TableColumn.cs" />
     <None Include="..\..\LICENSE">
       <Pack>True</Pack>
       <PackagePath></PackagePath>
@@ -28,11 +39,12 @@
   </ItemGroup>
   
   <ItemGroup Condition="'$(TargetFramework)' == 'net45'">
-    <Reference Include="System.Configuration.dll" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.ComponentModel.DataAnnotations" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Json.Serialization" Version="1.0.0" />
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
   </ItemGroup>
 </Project>
+

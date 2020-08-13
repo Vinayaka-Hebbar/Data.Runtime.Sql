@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace SqlDb.Data.Queries
+﻿namespace SqlDb.Data.Queries
 {
     public class TableCreateQuery<TElement> : TableQueryBase
     {
@@ -16,7 +10,7 @@ namespace SqlDb.Data.Queries
 
         public override string GetQueryString()
         {
-            return Table.BuildCreateQuery(this);
+            return string.Empty;
         }
     }
 }
